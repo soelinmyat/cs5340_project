@@ -48,11 +48,11 @@ def process_wcl(input_path, output_path, is_definition_sentence):
     output_path: file path to the output file
     is_definition_sentence: boolean if the file contains definition or non-definition sentences
   """
-  f = open(input_path,'r', encoding="utf8")
+  f = open(input_path,'r')
   sentences = f.readlines()
   f.close()
     
-  f = open(output_path,"w+", encoding="utf8")
+  f = open(output_path,"w+")
    
   for sentence in sentences:
     sentence = sentence.strip()
@@ -128,11 +128,11 @@ def extract_features(input_path, output_path):
     input_path: file path to the input file, *.column
     output_path: file path to the output file
   """
-  f = open(input_path,'r', encoding="utf8")
+  f = open(input_path,'r')
   words = f.readlines()
   f.close()
 
-  f = open(output_path,"w+", encoding="utf8")
+  f = open(output_path,"w+")
     
   for word in words:
     if not "\t" in word:  # empty line
@@ -165,7 +165,7 @@ def extract_extended_features(input_path, output_path):
     input_path: file path to the input file, *.column
     output_path: file path to the output file
   """
-  f = open(input_path,'r', encoding="utf8")
+  f = open(input_path,'r')
   words = f.readlines()
   f.close()
     
@@ -178,7 +178,9 @@ def extract_extended_features(input_path, output_path):
     else:
       words_in_a_line.append(word)
 
-  f = open(output_path,"w+", encoding="utf8")
+  shuffle(lines)
+
+  f = open(output_path,"w+")
 
   for line in lines:
     num_words = len(line)
@@ -191,12 +193,14 @@ def extract_extended_features(input_path, output_path):
       sentence_label = columns[0]
       features = ""
       for num in range(0,num_words-1):
-        features += extract_features_from_row(line[num], num - current_index)
-        if num != num_words-1:
-          features += " "
+        if abs(num - current_index) < 4:
+          features += extract_features_from_row(line[num], num - current_index)
+          if num != num_words-1:
+            features += " "
 
-      f.write("%s %s ---- NumWords=%i AvgWordsLength=%i %s\n" % (sentence_label, word_label, num_words, avg_word_length, features))
-
+      #f.write("%s %s ---- NumWords=%i AvgWordsLength=%i %s\n" % (sentence_label, word_label, num_words, avg_word_length, features))
+      f.write("%s ---- NumWords=%i AvgWordsLength=%i %s\n" % (word_label, num_words, avg_word_length, features))
+    f.write("\n")
   f.close()
 
 def extract_features_from_row(word, position):
@@ -235,53 +239,59 @@ def split_test_and_training_data(good_input_path, bad_input_path, training_txt_p
     training_size: the maximum size of training dataset
     test_size: the maximum size of test dataset
   """
-  training_num_terms = int(training_size * 0.2)
-  training_num_hyper = int(training_size * 0.2)
-  training_num_others = training_size - training_num_terms - training_num_hyper
-  test_num_terms = int(test_size * 0.2)
-  test_num_hyper = int(training_size * 0.2)
-  test_num_others = test_size - test_num_terms - training_num_hyper
 
-  f = open(good_input_path, encoding="utf8")
-  lines = f.readlines();
+  f = open(good_input_path)
+  good_words = f.readlines();
   f.close()
 
-  f = open(bad_input_path, encoding="utf8")
-  lines += (f.readlines())
+  f = open(bad_input_path)
+  bad_words = (f.readlines())
   f.close()
 
-  shuffle(lines)
+  #shuffle(lines)
 
-  f1 = open(training_txt_path, "w+", encoding="utf8")
-  f2 = open(test_txt_path, "w+", encoding="utf8")
-  for line in lines:
-    if "TERM" in line:
-      if training_num_terms > 0:
-        f1.write("%s" % line)
-        training_num_terms = training_num_terms - 1
-      elif test_num_terms > 0:
-        f2.write("%s" % line)
-        test_num_terms = test_num_terms - 1
+  f1 = open(training_txt_path, "w+")
+  f2 = open(test_txt_path, "w+")
+
+  test_sentence = 0
+  training_sentence = 0
+
+  count = 0
+  for word in good_words:
+    if "\t" in word:  # empty line
+      #pass #f.write("\n")
+      if count < training_size:
+        training_sentence = training_sentence + 1
       else:
-        pass 
-    elif "HYPER" in line:
-      if training_num_hyper > 0:
-        f1.write("%s" % line)
-        training_num_hyper = training_num_hyper - 1
-      elif test_num_hyper > 0:
-        f2.write("%s" % line)
-        test_num_hyper = test_num_hyper - 1
-      else:
-        pass 
+        test_sentence = test_sentence + 1
     else:
-      if training_num_others > 0:
-        f1.write("%s" % line)
-        training_num_others = training_num_others - 1
-      elif test_num_others > 0:
-        f2.write("%s" % line)
-        test_num_others = test_num_others - 1
+      if count < training_size:
+        f1.write("%s" % word)
+      elif count >= training_size and count < training_size + test_size:
+        f2.write("%s" % word)
       else:
-        pass 
+        break
+      count = count + 1
+
+  count = 0
+  for word in bad_words:
+    if not "\t" in word:  # empty line
+      #pass #f.write("\n")
+      if count < training_size:
+        training_sentence = training_sentence + 1
+      else:
+        test_sentence = test_sentence + 1
+    else:
+      if count < training_size:
+        f1.write("%s" % word)
+      elif count >= training_size and count < training_size + test_size:
+        f2.write("%s" % word)
+      else:
+        break
+      count = count + 1
+
+  print test_sentence
+  print training_sentence
 
   f1.close()
   f2.close()
